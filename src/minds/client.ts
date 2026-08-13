@@ -1,14 +1,18 @@
 import { Minds } from '@minds/sdk';
-import { generateCampaignPrompt } from './prompts';
+import { generateCampaignPrompt } from './prompts/index.ts';
 
 if (!process.env.MINDS_API_KEY) {
   console.warn('MINDS_API_KEY is not set in the environment. Minds API calls will fail.');
 }
 
-// Initialize the global Minds client
-export const mindsClient = new Minds({
-  apiKey: process.env.MINDS_API_KEY || '',
-});
+// Initialize the global Minds client.
+// allowNoKey keeps imports safe in tests and preview environments;
+// real generation calls still require MINDS_API_KEY or an agent ID.
+const mindsApiKey = process.env.MINDS_API_KEY || '';
+
+export const mindsClient = new Minds(
+  mindsApiKey ? { apiKey: mindsApiKey } : { allowNoKey: true },
+);
 
 type CreatorProfile = Record<string, unknown>;
 
