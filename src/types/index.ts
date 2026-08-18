@@ -36,3 +36,15 @@ export interface Creator {
   created_at: string;
   updated_at: string;
 }
+
+export interface LearningEvent {
+  id: string;
+  creator_id: string;
+  event_type: string;
+  original_text?: string;
+  modified_text?: string;
+  context?: string;
+  extracted_pattern?: string;
+  applied_to_campaigns?: string[];
+  created_at: string;
+}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Check, Edit2, Box, ArrowLeft, RefreshCw, Smartphone, Play, Music2, Zap, CheckCircle2, ShieldCheck, ShieldAlert, Cpu } from 'lucide-react'
+import { Check, Edit2, Box, ArrowLeft, RefreshCw, Smartphone, Play, Music2, Zap, CheckCircle2, ShieldCheck, ShieldAlert, Cpu, Copy, Sparkles, CheckCheck } from 'lucide-react'
 import { MagicBorderButton } from "@/components/magic-border-button";
 import { Button } from "@/components/ui/button";
 import { createClient } from '@/lib/supabase/client';
@@ -25,15 +25,14 @@ export default function CampaignDetail() {
   const [isGenerating, setIsGenerating] = useState(true)
   const [activeTab, setActiveTab] = useState('twitter')
   const [showLearningEvent, setShowLearningEvent] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [approving, setApproving] = useState(false)
+  const [approvedAll, setApprovedAll] = useState(false)
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [versions, setVersions] = useState<PlatformVersion[]>([]);
   const supabase = React.useMemo(() => createClient(), []);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Platforms definition mapping
-  // Moved outside component
-
 
   const fetchCampaign = useCallback(async () => {
     // 1. Fetch Campaign
@@ -41,6 +40,9 @@ export default function CampaignDetail() {
     if (c) {
       setCampaign(c);
       setIsGenerating(c.status === 'generating' || c.status === 'draft');
+      if (c.status === 'published' || c.status === 'reviewed') {
+        setApprovedAll(true);
+      }
     } else {
       setIsGenerating(false);
     }
@@ -116,6 +118,46 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleApproveAll = async () => {
+    if (!campaignId || approving) return;
+    setApproving(true);
+    try {
+      // 1. Update all platform versions to approved
+      await supabase
+        .from('platform_versions')
+        .update({ status: 'approved' })
+        .eq('campaign_id', campaignId);
+
+      // 2. Update campaign status to reviewed/published
+      await supabase
+        .from('campaigns')
+        .update({ status: 'published' })
+        .eq('id', campaignId);
+
+      setApprovedAll(true);
+      await fetchCampaign();
+    } catch (err) {
+      console.error('Failed to approve all:', err);
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const activeVersion = versions.find((version) => version.platform === activeTab);
+  const isSponsorSafe = activeVersion?.consistency_checks?.compliant !== false;
+  const currentContent = activeVersion?.final_text || activeVersion?.generated_text || '';
+
+  const handleCopy = async () => {
+    if (!currentContent) return;
+    try {
+      await navigator.clipboard.writeText(currentContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   const persistEdit = async (modifiedText: string) => {
     const currentVersion = versions.find((version) => version.platform === activeTab);
 
@@ -172,9 +214,6 @@ export default function CampaignDetail() {
     }, 700);
   };
 
-  const activeVersion = versions.find((version) => version.platform === activeTab);
-  const isSponsorSafe = activeVersion?.consistency_checks?.compliant !== false;
-
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-up pb-32">
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#666] hover:text-emerald-400 transition-colors mb-12">
@@ -227,8 +266,20 @@ export default function CampaignDetail() {
             <Button variant="outline" className="text-white border-[#333] bg-transparent hover:bg-[#111]" onClick={handleRegenerate}>
                <RefreshCw className="w-4 h-4 mr-2" /> Regenerate
             </Button>
-            <MagicBorderButton className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" /> Approve All
+            <MagicBorderButton
+              onClick={handleApproveAll}
+              disabled={approving || approvedAll}
+              className="flex items-center gap-2"
+            >
+              {approvedAll ? (
+                <>
+                  <CheckCheck className="w-4 h-4 text-emerald-400" /> Approved & Live
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" /> {approving ? 'Approving...' : 'Approve All'}
+                </>
+              )}
             </MagicBorderButton>
           </div>
         )}
@@ -237,7 +288,7 @@ export default function CampaignDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
         {/* Navigation Sidebar */}
         <div className="lg:col-span-1 space-y-2">
-          <p className="text-xs font-mono uppercase tracking-widest text-[#555] mb-6 mb-4">Platform Deliverables</p>
+          <p className="text-xs font-mono uppercase tracking-widest text-[#555] mb-4">Platform Deliverables</p>
           {campaign?.platforms?.map((platformId: string) => {
             const platformConfig = platformsDef.find(p => p.id === platformId) || platformsDef[0];
             const Icon = platformConfig.icon;
@@ -262,22 +313,28 @@ export default function CampaignDetail() {
           })}
         </div>
 
-        {/* Content Area */}
+        {/* Content Preview & Editor Area */}
         <div className="lg:col-span-3">
           {isGenerating ? (
-            <div className="h-[400px] border border-[#222] bg-[#0A0A0A] flex flex-col items-center justify-center space-y-6">
-              <div className="w-12 h-12 border-4 border-[#222] border-t-orange-500 rounded-full animate-spin"></div>
-              <p className="text-sm font-mono text-[#666] animate-pulse uppercase tracking-widest">Applying creator memory models...</p>
+            <div className="h-96 border border-[#222] bg-[#0A0A0A] flex flex-col items-center justify-center space-y-4">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce"></div>
+              </div>
+              <p className="font-mono text-sm uppercase tracking-widest text-[#888]">
+                Distilling voice signature for {platformsDef.find(p => p.id === activeTab)?.label}...
+              </p>
             </div>
           ) : (
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-[#222] to-[#111] opacity-50 group-hover:opacity-100 blur transition duration-1000"></div>
-              <div className="relative bg-[#050505] border border-[#222] p-8 md:p-12 h-full min-h-[400px] flex flex-col">
+            <div className="border border-[#222] bg-[#0A0A0A] relative group">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#444] to-transparent"></div>
 
-                <div className="flex justify-between items-start mb-8 text-xs font-mono text-[#666]">
-                  <span className="uppercase tracking-widest flex items-center gap-2">
-                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                     Status: Ready for Review
+              <div className="p-8 md:p-12 min-h-[480px] flex flex-col justify-between">
+                <div className="flex items-center justify-between border-b border-[#1A1A1A] pb-6 mb-8 text-xs font-mono uppercase tracking-wider text-[#666]">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Ready for Distribution
                   </span>
 
                   {/* Highlight: Agent Intelligence Score */}
@@ -292,22 +349,43 @@ export default function CampaignDetail() {
                 </div>
 
                 <div
-                  className="prose prose-invert max-w-none text-lg md:text-xl font-light leading-relaxed text-[#eee]"
+                  className="prose prose-invert max-w-none text-lg md:text-xl font-light leading-relaxed text-[#eee] focus:outline-none p-4 rounded-lg bg-[#0e0e0e]/50 border border-transparent focus:border-[#333]"
                   contentEditable
                   onInput={handleEdit}
                   suppressContentEditableWarning
                 >
-                  {activeVersion?.final_text || activeVersion?.generated_text || "Select a platform to view generated content."}
+                  {currentContent || "Select a platform to view generated content."}
                 </div>
 
-                <div className="mt-auto pt-12 flex items-center justify-between">
+                <div className="mt-auto pt-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-[#1a1a1a]">
                   <p className="text-xs text-[#555] italic">
                     * Try editing the text above. The Mind Agent will learn from your changes.
                   </p>
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="border-[#333] hover:bg-[#111] text-[#999]">
-                      <Edit2 className="w-4 h-4 mr-2" /> Refine with AI
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopy}
+                      className="border-[#333] hover:bg-[#151515] text-[#bbb] gap-1.5"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" /> Copy Text
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRegenerate}
+                      className="border-[#333] hover:bg-[#151515] text-[#bbb] gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Refine with AI
                     </Button>
                   </div>
                 </div>
