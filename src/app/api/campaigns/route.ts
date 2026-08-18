@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { generateCampaignContent } from '@/lib/campaign-generation';
 
 export async function POST(req: NextRequest) {
   try {
-    const { title, source_text, platforms, sponsor_brief } = await req.json();
+    const body = await req.json();
+
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const sourceText = typeof body.source_text === 'string' ? body.source_text.trim() : '';
+    const platforms = Array.isArray(body.platforms)
+      ? body.platforms.filter((platform: unknown): platform is string => typeof platform === 'string')
+      : [];
+    const sponsorBrief = body.sponsor_brief && typeof body.sponsor_brief === 'object' && !Array.isArray(body.sponsor_brief)
+      ? body.sponsor_brief
+      : {};
+
+    if (!title || !sourceText || platforms.length === 0) {
+      return NextResponse.json(
+        { error: 'title, source_text, and at least one platform are required' },
+        { status: 400 },
+      );
+    }
 
     const supabase = await createClient();
 
@@ -24,8 +41,8 @@ export async function POST(req: NextRequest) {
       .insert({
         creator_id: user.id,
         title,
-        source_text,
-        sponsor_brief,
+        source_text: sourceText,
+        sponsor_brief: sponsorBrief,
         platforms,
         status: 'draft'
       })
@@ -37,11 +54,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
     }
 
-    // Await the generation so it doesn't fail due to serverless early exit.
+    // Run generation with the same authenticated Supabase client.
     // In production, consider using a background queue like Inngest, Trigger.dev, or Next.js after().
-    await fetch(new URL(`/api/campaigns/${campaign.id}/generate`, req.url), {
-      method: 'POST',
-    }).catch(err => console.error("Async trigger error:", err));
+    await generateCampaignContent(supabase, campaign).catch((err) => {
+      console.error('Failed to generate campaign content:', err);
+    });
 
     return NextResponse.json({ success: true, id: campaign.id });
 

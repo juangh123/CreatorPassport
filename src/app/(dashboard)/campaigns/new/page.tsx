@@ -26,6 +26,8 @@ export default function NewCampaign() {
   const [audience, setAudience] = useState('')
   const [tone, setTone] = useState('')
   const [rules, setRules] = useState('')
+  const [requiredTerms, setRequiredTerms] = useState('')
+  const [forbiddenTerms, setForbiddenTerms] = useState('')
 
   const togglePlatform = (id: string) => {
     setPlatforms(prev =>
@@ -47,7 +49,18 @@ export default function NewCampaign() {
         body: JSON.stringify({
           title,
           source_text: sourceText,
-          platforms
+          platforms,
+          sponsor_brief: {
+            audience,
+            tone,
+            rules,
+            required_terms: requiredTerms
+              ? requiredTerms.split(',').map((term) => term.trim()).filter(Boolean)
+              : [],
+            forbidden_terms: forbiddenTerms
+              ? forbiddenTerms.split(',').map((term) => term.trim()).filter(Boolean)
+              : [],
+          },
         }),
       })
 
@@ -166,7 +179,21 @@ export default function NewCampaign() {
                   type="text"
                   value={rules}
                   onChange={e => setRules(e.target.value)}
-                  placeholder="Brand Rules (e.g., avoid mentioning XYZ)"
+                  placeholder="General Brand Rules (optional)"
+                  className="w-full bg-[#050505] border border-white/10 p-4 text-white/80 font-sans text-sm md:text-base placeholder-white/20 focus:outline-none focus:border-accent-neon transition-colors"
+                />
+                <input
+                  type="text"
+                  value={requiredTerms}
+                  onChange={e => setRequiredTerms(e.target.value)}
+                  placeholder="Required Terms, comma separated (e.g., pricing, discount code)"
+                  className="w-full bg-[#050505] border border-white/10 p-4 text-white/80 font-sans text-sm md:text-base placeholder-white/20 focus:outline-none focus:border-accent-neon transition-colors"
+                />
+                <input
+                  type="text"
+                  value={forbiddenTerms}
+                  onChange={e => setForbiddenTerms(e.target.value)}
+                  placeholder="Forbidden Terms, comma separated (e.g., competitor name, guarantee)"
                   className="w-full bg-[#050505] border border-white/10 p-4 text-white/80 font-sans text-sm md:text-base placeholder-white/20 focus:outline-none focus:border-accent-neon transition-colors"
                 />
               </div>
@@ -177,7 +204,7 @@ export default function NewCampaign() {
         {/* Step 4 */}
         <div className="flex gap-4 md:gap-8 group">
           <div className="hidden md:flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full border border-accent-neon flex items-center justify-center text-accent-neon font-mono text-sm leading-none z-10 bg-background">03</div>
+            <div className="w-10 h-10 rounded-full border border-accent-neon flex items-center justify-center text-accent-neon font-mono text-sm leading-none z-10 bg-background">04</div>
           </div>
           <div className="flex-1 space-y-6">
             <SpotlightCard className="p-8 md:p-10">

@@ -20,10 +20,21 @@ interface Task {
   task_type: string;
 }
 
+interface LearningEvent {
+  id: string;
+  extracted_pattern: string | null;
+}
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [mindId, setMindId] = useState('');
+  const [savedMindId, setSavedMindId] = useState('');
+  const [savingMindId, setSavingMindId] = useState(false);
+  const [creatorName, setCreatorName] = useState('');
+  const [platformCount, setPlatformCount] = useState(0);
+  const [learnings, setLearnings] = useState<LearningEvent[]>([]);
   const supabase = React.useMemo(() => createClient(), []);
 
   const fetchData = useCallback(async () => {
@@ -46,24 +57,43 @@ export default function Dashboard() {
         .order('scheduled_at', { ascending: true })
         .limit(3);
 
-      if (tks && tks.length > 0 && !tkErr) {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        setCreatorName(user.email?.split('@')[0] || 'Creator');
+
+        const { data: creator } = await supabase
+          .from('creators')
+          .select('email, mind_id, voice_profile')
+          .eq('id', user.id)
+          .single();
+
+        if (creator?.mind_id) {
+          setMindId(creator.mind_id);
+          setSavedMindId(creator.mind_id);
+        }
+
+        const savedPlatforms = Array.isArray(creator?.voice_profile?.platforms)
+          ? creator.voice_profile.platforms
+          : [];
+
+        if (savedPlatforms.length > 0) {
+          setPlatformCount(savedPlatforms.length);
+        }
+      }
+
+      const { data: learningEvents } = await supabase
+        .from('learning_events')
+        .select('id, extracted_pattern')
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (learningEvents) {
+        setLearnings(learningEvents);
+      }
+
+      if (tks && !tkErr) {
         setTasks(tks);
-      } else {
-        // Hydrate demo tasks
-        setTasks([
-          {
-            id: 't1',
-            description: 'Expiring promo link check in 3 days for "Summer Launch".',
-            status: 'pending',
-            task_type: 'content_expiring'
-          },
-          {
-            id: 't2',
-            description: 'Learned preference update: Now keeping LinkedIn paragraphs under 3 sentences based on recent edits.',
-            status: 'completed',
-            task_type: 'learned_preference_update'
-          }
-        ]);
       }
     } catch (e) {
       console.error(e);
@@ -78,13 +108,39 @@ export default function Dashboard() {
     fetchData();
   }, [fetchData]);
 
+  const saveMindId = async () => {
+    const nextMindId = mindId.trim();
+    if (!nextMindId || nextMindId === savedMindId) return;
+
+    setSavingMindId(true);
+
+    try {
+      const response = await fetch('/api/creators/minds-agent', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: nextMindId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to bind Minds agent');
+      }
+
+      setSavedMindId(nextMindId);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to save Minds Agent ID.');
+    } finally {
+      setSavingMindId(false);
+    }
+  };
+
   return (
     <div className="flex-1 p-6 md:p-10 space-y-10 max-w-6xl mx-auto w-full pb-24">
       {/* Header */}
       <div className="flex justify-between items-end">
         <div className="space-y-1">
-          <h1 className="text-3xl font-light tracking-tight text-white">Welcome back, Jason</h1>
-          <p className="text-[#888] text-sm">Your Mind is active and monitoring 3 platforms.</p>
+          <h1 className="text-3xl font-light tracking-tight text-white">Welcome back, {creatorName || 'Creator'}</h1>
+          <p className="text-[#888] text-sm">Your Mind is active and monitoring {platformCount || 0} platforms.</p>
         </div>
         <Link href="/campaigns/new">
           <MagicBorderButton className="flex items-center gap-2">
@@ -117,23 +173,45 @@ export default function Dashboard() {
                </div>
             </div>
 
-            <div className="space-y-3 mt-6">
+            <div className="mt-4 space-y-2">
+               <label htmlFor="mind-agent-id" className="block text-xs uppercase tracking-widest text-[#666]">Minds Agent ID</label>
+               <input
+                 id="mind-agent-id"
+                 type="text"
+                 value={mindId}
+                 onChange={(event) => setMindId(event.target.value)}
+                 placeholder="Paste a Minds agent ID"
+                 className="w-full rounded bg-[#111] border border-[#333] px-3 py-2 text-sm text-white placeholder-[#555] outline-none focus:border-emerald-500/60"
+               />
+               <Button
+                 type="button"
+                 onClick={saveMindId}
+                 disabled={savingMindId || !mindId.trim() || mindId.trim() === savedMindId}
+                 className="w-full"
+               >
+                 {savingMindId ? 'Saving...' : savedMindId ? 'Update Agent' : 'Save Agent'}
+               </Button>
+             </div>
+
+             <div className="space-y-3 mt-6">
                <div className="bg-[#111] border border-[#2a2a2a] p-3 rounded text-sm text-[#999] flex justify-between items-center">
-                  <span>Tone Sync Score</span>
-                  <span className="text-emerald-400 font-mono">98.4%</span>
+                  <span>Configured Platforms</span>
+                  <span className="text-emerald-400 font-mono">{platformCount}</span>
                </div>
                <div className="bg-[#111] border border-[#2a2a2a] p-3 rounded text-sm text-[#999] space-y-2">
                   <span className="block text-xs uppercase text-[#666]">Recent Learnings (Memory)</span>
                   <ul className="text-xs space-y-2 text-[#aaa]">
-                    <li className="flex items-start gap-2">
-                       <Zap className="w-3 h-3 text-emerald-500 mt-0.5 shrink-0" />
-                       &quot;Prefers technical deep-dives on LinkedIn rather than buzzwords.&quot;
-                    </li>
-                    <li className="flex items-start gap-2">
-                       <Zap className="w-3 h-3 text-emerald-500 mt-0.5 shrink-0" />
-                       &quot;Uses emojis sparingly on X (max 2 per post).&quot;
-                    </li>
-                  </ul>
+                     {learnings.length === 0 ? (
+                       <li className="text-[#666]">No learnings yet.</li>
+                     ) : (
+                       learnings.map((learning) => (
+                         <li key={learning.id} className="flex items-start gap-2">
+                           <Zap className="w-3 h-3 text-emerald-500 mt-0.5 shrink-0" />
+                           {learning.extracted_pattern || 'Memory updated'}
+                         </li>
+                       ))
+                     )}
+                   </ul>
                </div>
             </div>
           </SpotlightCard>

@@ -16,8 +16,14 @@ export interface PlatformVersion {
   campaign_id: string;
   platform: string;
   generated_text: string;
+  final_text?: string;
   feedback?: string;
   status: 'pending' | 'reviewed' | 'approved' | 'published' | 'replaced';
+  consistency_checks?: {
+    compliant: boolean;
+    missing: string[];
+    violations: string[];
+  };
   created_at: string;
 }
 

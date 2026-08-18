@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Check, Edit2, Box, ArrowLeft, RefreshCw, Smartphone, Play, Music2, Zap, CheckCircle2, ShieldCheck, Cpu } from 'lucide-react'
+import { Check, Edit2, Box, ArrowLeft, RefreshCw, Smartphone, Play, Music2, Zap, CheckCircle2, ShieldCheck, ShieldAlert, Cpu } from 'lucide-react'
 import { MagicBorderButton } from "@/components/magic-border-button";
 import { Button } from "@/components/ui/button";
 import { createClient } from '@/lib/supabase/client';
@@ -29,6 +29,7 @@ export default function CampaignDetail() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [versions, setVersions] = useState<PlatformVersion[]>([]);
   const supabase = React.useMemo(() => createClient(), []);
+  const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Platforms definition mapping
   // Moved outside component
@@ -85,13 +86,94 @@ export default function CampaignDetail() {
     }
   }, [fetchCampaign, campaignId, supabase]);
 
-  const handleEdit = () => {
-    // Simulate an edit triggering a learning event
-    setTimeout(() => {
-      setShowLearningEvent(true)
-      setTimeout(() => setShowLearningEvent(false), 5000) // Hide after 5s
-    }, 2000)
-  }
+  useEffect(() => {
+    return () => {
+      if (editTimer.current) {
+        clearTimeout(editTimer.current);
+      }
+    };
+  }, []);
+
+  const handleRegenerate = async () => {
+    if (!campaignId) return;
+
+    setIsGenerating(true);
+
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/generate`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate campaign');
+      }
+
+      await fetchCampaign();
+    } catch (error) {
+      console.error('Failed to regenerate campaign:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const persistEdit = async (modifiedText: string) => {
+    const currentVersion = versions.find((version) => version.platform === activeTab);
+
+    if (!currentVersion || !campaign || modifiedText.trim() === (currentVersion.final_text || currentVersion.generated_text)) {
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('platform_versions')
+      .update({
+        final_text: modifiedText.trim(),
+        status: 'reviewed',
+      })
+      .eq('id', currentVersion.id);
+
+    if (updateError) {
+      console.error('Failed to persist edit:', updateError);
+      return;
+    }
+
+    setVersions((currentVersions) =>
+      currentVersions.map((version) =>
+        version.id === currentVersion.id
+          ? { ...version, final_text: modifiedText.trim(), status: 'reviewed' }
+          : version,
+      ),
+    );
+
+    if (campaign.creator_id) {
+      await supabase.from('learning_events').insert({
+        creator_id: campaign.creator_id,
+        event_type: 'modification',
+        original_text: currentVersion.generated_text,
+        modified_text: modifiedText.trim(),
+        context: `Campaign ${campaignId}, platform ${activeTab}`,
+        extracted_pattern: 'User edited generated content.',
+        applied_to_campaigns: [campaignId],
+      });
+    }
+
+    setShowLearningEvent(true);
+    setTimeout(() => setShowLearningEvent(false), 5000);
+  };
+
+  const handleEdit = (event: React.FormEvent<HTMLDivElement>) => {
+    const modifiedText = event.currentTarget.textContent ?? '';
+
+    if (editTimer.current) {
+      clearTimeout(editTimer.current);
+    }
+
+    editTimer.current = setTimeout(() => {
+      void persistEdit(modifiedText);
+    }, 700);
+  };
+
+  const activeVersion = versions.find((version) => version.platform === activeTab);
+  const isSponsorSafe = activeVersion?.consistency_checks?.compliant !== false;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-up pb-32">
@@ -142,7 +224,7 @@ export default function CampaignDetail() {
           </div>
         ) : (
           <div className="flex gap-4">
-            <Button variant="outline" className="text-white border-[#333] bg-transparent hover:bg-[#111]" onClick={() => setIsGenerating(true)}>
+            <Button variant="outline" className="text-white border-[#333] bg-transparent hover:bg-[#111]" onClick={handleRegenerate}>
                <RefreshCw className="w-4 h-4 mr-2" /> Regenerate
             </Button>
             <MagicBorderButton className="flex items-center gap-2">
@@ -201,7 +283,11 @@ export default function CampaignDetail() {
                   {/* Highlight: Agent Intelligence Score */}
                   <span className="flex gap-4">
                      <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 size={12}/> Tone Match: 98%</span>
-                     <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 size={12}/> Sponsor Safe</span>
+                     {isSponsorSafe ? (
+                       <span className="text-emerald-400 flex items-center gap-1"><ShieldCheck size={12}/> Sponsor Safe</span>
+                     ) : (
+                       <span className="text-orange-400 flex items-center gap-1"><ShieldAlert size={12}/> Needs Review</span>
+                     )}
                   </span>
                 </div>
 
@@ -211,7 +297,7 @@ export default function CampaignDetail() {
                   onInput={handleEdit}
                   suppressContentEditableWarning
                 >
-                  {versions.find(v => v.platform === activeTab)?.generated_text || "Select a platform to view generated content."}
+                  {activeVersion?.final_text || activeVersion?.generated_text || "Select a platform to view generated content."}
                 </div>
 
                 <div className="mt-auto pt-12 flex items-center justify-between">
