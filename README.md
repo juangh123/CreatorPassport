@@ -96,6 +96,7 @@ npm run lint        # ESLint
 npm run lint:fix    # ESLint with auto-fix
 npm run typecheck   # TypeScript
 npm run test        # node --test
+npm run preflight   # read-only env + Supabase + Minds checks
 npm run check       # lint + typecheck + test + build
 ```
 

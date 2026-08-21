@@ -4,6 +4,7 @@ Target length: **1.5–2 minutes**.
 
 ## Preflight
 
+- Run `npm run preflight` and address every `WARN`.
 - Confirm `.env.local` contains real Supabase and Minds values.
 - Confirm the Supabase migration has been applied.
 - Bind a Minds agent ID in the dashboard before recording.
