@@ -4,9 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  BarChart2, 
-  Share2, 
-  Settings, 
   CheckCircle2, 
   ExternalLink,
   BrainCircuit,
@@ -25,11 +22,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from '@/lib/supabase/client';
 import { Campaign, LearningEvent } from '@/types';
+import type { User } from '@supabase/supabase-js';
 
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [mindsAgentId, setMindsAgentId] = useState('');
   const [mindsAgentSaving, setMindsAgentSaving] = useState(false);
   const [mindsAgentFeedback, setMindsAgentFeedback] = useState<string | null>(null);
@@ -113,7 +111,7 @@ export default function Dashboard() {
       const res = await fetch('/api/creators/minds-agent', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mind_id: mindsAgentId.trim() || null })
+        body: JSON.stringify({ agentId: mindsAgentId.trim() || null })
       });
 
       if (!res.ok) {

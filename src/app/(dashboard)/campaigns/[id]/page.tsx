@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Check, Edit2, Box, ArrowLeft, RefreshCw, Smartphone, Play, Music2, Zap, CheckCircle2, ShieldCheck, ShieldAlert, Cpu, Copy, Sparkles, CheckCheck } from 'lucide-react'
+import { Check, Box, ArrowLeft, RefreshCw, Smartphone, Play, Music2, Zap, CheckCircle2, ShieldCheck, ShieldAlert, Cpu, Copy, Sparkles, CheckCheck } from 'lucide-react'
 import { MagicBorderButton } from "@/components/magic-border-button";
 import { Button } from "@/components/ui/button";
 import { createClient } from '@/lib/supabase/client';
@@ -40,7 +40,7 @@ export default function CampaignDetail() {
     if (c) {
       setCampaign(c);
       setIsGenerating(c.status === 'generating' || c.status === 'draft');
-      if (c.status === 'published' || c.status === 'reviewed') {
+      if (c.status === 'published' || c.status === 'complete') {
         setApprovedAll(true);
       }
     } else {
@@ -165,41 +165,38 @@ export default function CampaignDetail() {
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from('platform_versions')
-      .update({
-        final_text: modifiedText.trim(),
-        status: 'reviewed',
-      })
-      .eq('id', currentVersion.id);
+    const response = await fetch(
+      `/api/campaigns/${campaignId}/platform-versions/${currentVersion.id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ final_text: modifiedText.trim() }),
+      },
+    );
 
-    if (updateError) {
-      console.error('Failed to persist edit:', updateError);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      console.error('Failed to persist edit:', payload);
       return;
     }
 
+    const result = await response.json();
+    const savedVersion = result.version ?? {
+      ...currentVersion,
+      final_text: modifiedText.trim(),
+      status: 'reviewed',
+    };
+
     setVersions((currentVersions) =>
       currentVersions.map((version) =>
-        version.id === currentVersion.id
-          ? { ...version, final_text: modifiedText.trim(), status: 'reviewed' }
-          : version,
+        version.id === currentVersion.id ? savedVersion : version,
       ),
     );
 
-    if (campaign.creator_id) {
-      await supabase.from('learning_events').insert({
-        creator_id: campaign.creator_id,
-        event_type: 'modification',
-        original_text: currentVersion.generated_text,
-        modified_text: modifiedText.trim(),
-        context: `Campaign ${campaignId}, platform ${activeTab}`,
-        extracted_pattern: 'User edited generated content.',
-        applied_to_campaigns: [campaignId],
-      });
+    if (result.memorySynced) {
+      setShowLearningEvent(true);
+      setTimeout(() => setShowLearningEvent(false), 5000);
     }
-
-    setShowLearningEvent(true);
-    setTimeout(() => setShowLearningEvent(false), 5000);
   };
 
   const handleEdit = (event: React.FormEvent<HTMLDivElement>) => {

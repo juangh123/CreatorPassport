@@ -11,15 +11,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     const { agentId } = await req.json();
-
-    if (typeof agentId !== 'string' || !agentId.trim()) {
-      return NextResponse.json({ error: 'agentId is required' }, { status: 400 });
-    }
+    const normalizedAgentId = typeof agentId === 'string' && agentId.trim()
+      ? agentId.trim()
+      : null;
 
     const { error } = await supabase.from('creators').upsert({
       id: user.id,
       email: user.email ?? null,
-      mind_id: agentId.trim(),
+      mind_id: normalizedAgentId,
     }, { onConflict: 'id' });
 
     if (error) {
@@ -27,7 +26,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to bind Minds agent' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, agentId: agentId.trim() });
+    return NextResponse.json({ success: true, agentId: normalizedAgentId });
   } catch (error) {
     console.error('PATCH /api/creators/minds-agent error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

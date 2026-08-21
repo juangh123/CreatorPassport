@@ -75,7 +75,7 @@ export default function NewCampaign() {
 
     } catch (error) {
       console.error(error)
-      alert("Error occurred creating campaign. Note: For Mock testing, ensure backend mock logic is active.")
+      alert("Error occurred creating campaign. Check that Supabase and your Minds agent are configured.")
       setIsSubmitting(false)
     }
   }

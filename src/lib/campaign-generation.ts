@@ -1,5 +1,5 @@
 import { checkSponsorCompliance } from '@/lib/compliance';
-import { sendMindMessage } from '@/minds/client';
+import { getAgentId, getMindMemoryContext, sendMindMessage } from '@/minds/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type CampaignGenerationRecord = {
@@ -31,6 +31,14 @@ export async function generateCampaignContent(
       }
     : {};
 
+  const mindAgentId = getAgentId(creatorProfile);
+  const memoryContext = mindAgentId
+    ? await getMindMemoryContext(
+        mindAgentId,
+        `${campaign.title}\n${campaign.source_text ?? ''}`,
+      )
+    : '';
+
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
 
   for (const platform of platforms) {
@@ -43,6 +51,7 @@ export async function generateCampaignContent(
         sponsorConstraints: campaign.sponsor_brief ?? {},
         platform,
         creatorProfile,
+        memoryContext,
       });
     } catch (err) {
       console.error(`Failed to generate for ${platform}:`, err);

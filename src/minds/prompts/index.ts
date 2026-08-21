@@ -28,7 +28,12 @@ You are CreatorPassport Core. Analyze the user's modifications to the generated 
 Extract generalizable preferences (e.g., "Prefers shorter sentences", "Always uses 🔥 emoji").
 `;
 
-export function generateCampaignPrompt(sourceText: string, context: Record<string, unknown>, voiceProfile: Record<string, unknown>) {
+export function generateCampaignPrompt(
+  sourceText: string,
+  context: Record<string, unknown>,
+  voiceProfile: Record<string, unknown>,
+  memoryContext = '',
+) {
   return `
 ${GENERATE_CAMPAIGN_PROMPT}
 
@@ -39,6 +44,7 @@ ${sourceText}
 Campaign Context:
 ${JSON.stringify(context, null, 2)}
 
+${memoryContext ? `Learned Preferences:\n${memoryContext}\n` : ''}
 Creator Voice Profile:
 ${JSON.stringify(voiceProfile, null, 2)}
   `;

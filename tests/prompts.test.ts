@@ -20,3 +20,9 @@ test('generateCampaignPrompt includes the system instructions', () => {
 
   assert.match(prompt, new RegExp(GENERATE_CAMPAIGN_PROMPT.trim()));
 });
+
+test('generateCampaignPrompt includes learned preferences when supplied', () => {
+  const prompt = generateCampaignPrompt('source', {}, {}, 'Prefers short sentences');
+
+  assert.match(prompt, /Learned Preferences:\nPrefers short sentences/);
+});
