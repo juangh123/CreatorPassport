@@ -3,7 +3,9 @@
 ## Minds Integration Depth
 
 - Uses `@minds/sdk` for real generation via `chatStreamText()`.
+- Reuses the Minds conversation ID within a campaign for continuity across platform generations.
 - Writes edited outputs as Minds memory facts and reads memory context during future generation.
+- Creates pending follow-up tasks when a platform generation fails.
 - Binding a per-creator agent ID is a first-class dashboard action.
 
 ## Creator-Economy Problem Fit

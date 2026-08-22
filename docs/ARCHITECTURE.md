@@ -39,8 +39,9 @@ Browser
 3. `generateCampaignContent` loads the creator's `voice_profile` and `mind_id`.
 4. If a Minds agent is available, the service calls `getMindMemoryContext()` and injects it into the generation prompt.
 5. For each selected platform, the service calls `sendMindMessage()`.
-6. `sendMindMessage()` uses `mindsClient.agents.chatStreamText()` and returns real Minds content.
+6. `sendMindMessage()` uses `mindsClient.agents.chatStreamText()` and reuses the campaign conversation ID after the first call.
 7. Each generated version is compliance-checked and stored in `platform_versions`.
+8. Generation failures create pending `follow_up_tasks` with type `incomplete_versions`.
 
 ### Edit and Memory Loop
 

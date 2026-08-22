@@ -21,6 +21,8 @@ Working prototype with real Supabase and Minds integration:
 - **Content repurposing workflow** from one long-form source into platform-specific versions.
 - **Sponsor compliance guardrails** for required and forbidden terms.
 - **Minds memory loop** across sessions: user edits become preference facts and influence future prompts.
+- **Conversation continuity** through `campaigns.mind_session_id` across platform generations.
+- **Automatic follow-up task creation** when a platform generation needs retry.
 - **Supabase Realtime** updates on campaign detail pages.
 - **RLS-enabled Postgres schema** scoped to the authenticated user.
 

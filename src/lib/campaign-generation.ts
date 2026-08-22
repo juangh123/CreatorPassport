@@ -10,6 +10,7 @@ export type CampaignGenerationRecord = {
   sponsor_brief?: Record<string, unknown> | null;
   platforms?: string[] | null;
   status?: string;
+  mind_session_id?: string | null;
 };
 
 export async function generateCampaignContent(
@@ -40,22 +41,32 @@ export async function generateCampaignContent(
     : '';
 
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
+  let conversationId = campaign.mind_session_id ?? undefined;
+  const failedPlatforms: string[] = [];
 
   for (const platform of platforms) {
     let generatedText = '';
 
     try {
-      generatedText = await sendMindMessage({
+      const result = await sendMindMessage({
         campaignTitle: campaign.title,
         sourceText: campaign.source_text ?? '',
         sponsorConstraints: campaign.sponsor_brief ?? {},
         platform,
         creatorProfile,
         memoryContext,
+        conversationId,
       });
+
+      generatedText = result.content;
+
+      if (result.conversationId) {
+        conversationId = result.conversationId;
+      }
     } catch (err) {
       console.error(`Failed to generate for ${platform}:`, err);
       generatedText = `Error generating content for ${platform}`;
+      failedPlatforms.push(platform);
     }
 
     const compliance = checkSponsorCompliance(
@@ -76,6 +87,26 @@ export async function generateCampaignContent(
       status: 'pending',
       consistency_checks: compliance,
     });
+  }
+
+  if (conversationId && conversationId !== campaign.mind_session_id) {
+    await supabase
+      .from('campaigns')
+      .update({ mind_session_id: conversationId })
+      .eq('id', campaign.id);
+  }
+
+  if (failedPlatforms.length > 0) {
+    await supabase.from('follow_up_tasks').insert(
+      failedPlatforms.map((platform) => ({
+        campaign_id: campaign.id,
+        task_type: 'incomplete_versions',
+        description: `Regenerate the ${platform} version after a Minds generation error.`,
+        status: 'pending',
+        scheduled_at: new Date().toISOString(),
+        mind_decision: { failed_platform: platform },
+      })),
+    );
   }
 
   await supabase.from('campaigns').update({ status: 'reviewing' }).eq('id', campaign.id);

@@ -23,6 +23,12 @@ type SendMindMessageInput = {
   platform: string;
   creatorProfile?: CreatorProfile;
   memoryContext?: string;
+  conversationId?: string;
+};
+
+export type SendMindMessageResult = {
+  content: string;
+  conversationId: string;
 };
 
 export function getAgentId(creatorProfile?: CreatorProfile) {
@@ -33,7 +39,7 @@ export function getAgentId(creatorProfile?: CreatorProfile) {
   return process.env.MINDS_AGENT_ID || null;
 }
 
-export async function sendMindMessage(input: SendMindMessageInput) {
+export async function sendMindMessage(input: SendMindMessageInput): Promise<SendMindMessageResult> {
   const agentId = getAgentId(input.creatorProfile);
 
   if (!agentId) {
@@ -51,16 +57,17 @@ export async function sendMindMessage(input: SendMindMessageInput) {
     input.memoryContext ?? '',
   );
 
-  const { content } = await mindsClient.agents.chatStreamText(agentId, {
-    message: prompt,
-    new_conversation: true,
-  });
+  const chatInput = input.conversationId
+    ? { message: prompt, conversation_id: input.conversationId }
+    : { message: prompt, new_conversation: true };
+
+  const { content, conversationId } = await mindsClient.agents.chatStreamText(agentId, chatInput);
 
   if (!content?.trim()) {
     throw new Error('Minds returned empty content');
   }
 
-  return content;
+  return { content, conversationId };
 }
 
 /**
