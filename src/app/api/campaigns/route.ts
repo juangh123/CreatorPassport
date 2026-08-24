@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateCampaignContent } from '@/lib/campaign-generation';
 
@@ -54,10 +55,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
     }
 
-    // Run generation with the same authenticated Supabase client.
-    // In production, consider using a background queue like Inngest, Trigger.dev, or Next.js after().
-    await generateCampaignContent(supabase, campaign).catch((err) => {
-      console.error('Failed to generate campaign content:', err);
+    // Return immediately and run Minds generation after the response is sent.
+    after(async () => {
+      try {
+        await generateCampaignContent(supabase, campaign);
+      } catch (err) {
+        console.error('Failed to generate campaign content:', err);
+      }
     });
 
     return NextResponse.json({ success: true, id: campaign.id });

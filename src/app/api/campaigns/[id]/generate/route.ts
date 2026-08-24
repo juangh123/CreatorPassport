@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateCampaignContent } from '@/lib/campaign-generation';
 
@@ -30,9 +31,15 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await generateCampaignContent(supabase, campaign);
+    after(async () => {
+      try {
+        await generateCampaignContent(supabase, campaign);
+      } catch (error) {
+        console.error('Failed to regenerate campaign content:', error);
+      }
+    });
 
-    return NextResponse.json({ success: true, message: 'Generation complete', campaignId: id });
+    return NextResponse.json({ success: true, message: 'Generation scheduled', campaignId: id });
 
   } catch (error) {
     console.error('API /campaigns/:id/generate POST error:', error);
