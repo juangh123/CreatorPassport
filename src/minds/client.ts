@@ -42,7 +42,7 @@ export function getAgentId(creatorProfile?: CreatorProfile) {
 }
 
 export function getMindAlias(mindId: string) {
-  return `creatorpassport:${mindId}:v2`;
+  return `creatorpassport:${mindId}:v3`;
 }
 
 export async function sendMindMessage(input: SendMindMessageInput): Promise<SendMindMessageResult> {

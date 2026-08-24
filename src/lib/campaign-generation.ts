@@ -45,7 +45,7 @@ export async function generateCampaignContent(
     ? getMindAlias(mindAgentId)
     : undefined;
   let conversationAlias =
-    campaign.mind_session_id?.startsWith('creatorpassport:') && campaign.mind_session_id?.endsWith(':v2')
+    campaign.mind_session_id?.startsWith('creatorpassport:') && campaign.mind_session_id?.endsWith(':v3')
       ? campaign.mind_session_id
       : stableMindAlias;
   const failedPlatforms: string[] = [];

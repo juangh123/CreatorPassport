@@ -46,7 +46,7 @@ test('sendMindMessage returns the Mind reply for a configured agent', async () =
   });
 
   assert.equal(result.content, 'Real Minds response');
-  assert.equal(result.conversationId, 'creatorpassport:agent_test:v2');
+  assert.equal(result.conversationId, 'creatorpassport:agent_test:v3');
 });
 
 test('sendMindMessage rejects when Minds returns empty content', async () => {
@@ -124,11 +124,11 @@ test('sendMindMessage reuses the provided conversation alias', async () => {
     sourceText: 'A new creator workflow agent.',
     platform: 'linkedin',
     creatorProfile: { mind_id: 'agent_test' },
-    conversationId: 'creatorpassport:agent_test:v2',
+    conversationId: 'creatorpassport:agent_test:v3',
   });
 
-  assert.equal(capturedAlias, 'creatorpassport:agent_test:v2');
-  assert.equal(result.conversationId, 'creatorpassport:agent_test:v2');
+  assert.equal(capturedAlias, 'creatorpassport:agent_test:v3');
+  assert.equal(result.conversationId, 'creatorpassport:agent_test:v3');
 });
 
 test('getMindMemoryContext returns recent Minds replies', async () => {
