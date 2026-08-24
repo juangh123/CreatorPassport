@@ -30,14 +30,14 @@ Target length: **1.5–2 minutes**.
 1. Open one generated platform version.
 2. Edit the text to reflect a creator preference, for example shorten sentences or add an emoji style.
 3. Point out the **Agent Memory Updated** notification.
-4. Say: "This edit is stored in Supabase and written to Minds memory as an agent-scoped fact."
+4. Say: "This edit is stored in Supabase and written to the persistent Minds conversation as a preference note."
 
 ### 1:15–1:45 — Cross-session recall
 
 1. Log out and log back in, or open a fresh browser session.
 2. Create a second campaign with a different source.
 3. Show that the generated output reflects the earlier preference.
-4. Say: "The Minds memory context is injected into the next prompt, proving persistence across sessions."
+4. Say: "Recent Minds replies are injected into the next prompt, proving persistence across sessions."
 
 ### 1:45–2:00 — Submission tie-out
 

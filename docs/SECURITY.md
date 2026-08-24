@@ -11,7 +11,7 @@
 
 Do not force dependency upgrades immediately before the demo because the reported fix path moves `next` outside the locked `16.2.11` range. Upgrading Next can change routing, build, and server behavior without enough validation time.
 
-The reported packages are primarily transitive dependencies of Next.js, the Minds SDK toolchain, or build tooling:
+The reported packages are primarily transitive dependencies of Next.js, the Minds client toolchain, or build tooling:
 
 - `next` / `postcss` / `sharp` — build and image-processing path.
 - `nanoid`, `js-yaml`, `hono`, `fast-uri`, `brace-expansion` — transitive dependencies in the SDK and toolchain.

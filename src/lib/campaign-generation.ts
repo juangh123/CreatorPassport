@@ -41,7 +41,13 @@ export async function generateCampaignContent(
     : '';
 
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
-  let conversationId = campaign.mind_session_id ?? undefined;
+  const stableMindAlias = mindAgentId
+    ? `creatorpassport:${mindAgentId}`
+    : undefined;
+  let conversationAlias =
+    campaign.mind_session_id?.startsWith('creatorpassport:')
+      ? campaign.mind_session_id
+      : stableMindAlias;
   const failedPlatforms: string[] = [];
 
   for (const platform of platforms) {
@@ -55,13 +61,13 @@ export async function generateCampaignContent(
         platform,
         creatorProfile,
         memoryContext,
-        conversationId,
+        conversationId: conversationAlias,
       });
 
       generatedText = result.content;
 
       if (result.conversationId) {
-        conversationId = result.conversationId;
+        conversationAlias = result.conversationId;
       }
     } catch (err) {
       console.error(`Failed to generate for ${platform}:`, err);
@@ -89,10 +95,10 @@ export async function generateCampaignContent(
     });
   }
 
-  if (conversationId && conversationId !== campaign.mind_session_id) {
+  if (conversationAlias && conversationAlias !== campaign.mind_session_id) {
     await supabase
       .from('campaigns')
-      .update({ mind_session_id: conversationId })
+      .update({ mind_session_id: conversationAlias })
       .eq('id', campaign.id);
   }
 

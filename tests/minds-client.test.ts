@@ -2,11 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mock, beforeEach } from 'node:test';
 import { getMindMemoryContext, mindsClient, sendMindMessage, writeMindMemory } from '../src/minds/client.ts';
-import type { AgentChatInput } from '@minds/sdk';
 
 beforeEach(() => {
   mock.restoreAll();
 });
+
+function stubConversation() {
+  mock.method(mindsClient, 'ensureConversation', async (alias: string, mindId: string) => ({
+    conversationId: `conversation:${alias}`,
+    alias,
+    mindId,
+  }));
+}
 
 test('sendMindMessage rejects when no Minds agent is configured', async () => {
   await assert.rejects(
@@ -19,11 +26,16 @@ test('sendMindMessage rejects when no Minds agent is configured', async () => {
   );
 });
 
-test('sendMindMessage returns chatStreamText content for a configured agent', async () => {
-  mock.method(mindsClient.agents, 'chatStreamText', async () => ({
-    content: 'Real Minds response',
-    conversationId: 'conversation_test',
-    chunks: [],
+test('sendMindMessage returns the Mind reply for a configured agent', async () => {
+  stubConversation();
+  mock.method(mindsClient, 'sendMessage', async () => ({}));
+  mock.method(mindsClient, 'waitForReply', async () => ({
+    timedOut: false,
+    reply: {
+      fingerprint: 'reply_test',
+      messageText: 'Real Minds response',
+      senderType: 0,
+    },
   }));
 
   const result = await sendMindMessage({
@@ -34,14 +46,19 @@ test('sendMindMessage returns chatStreamText content for a configured agent', as
   });
 
   assert.equal(result.content, 'Real Minds response');
-  assert.equal(result.conversationId, 'conversation_test');
+  assert.equal(result.conversationId, 'creatorpassport:agent_test');
 });
 
 test('sendMindMessage rejects when Minds returns empty content', async () => {
-  mock.method(mindsClient.agents, 'chatStreamText', async () => ({
-    content: '',
-    conversationId: 'conversation_test',
-    chunks: [],
+  stubConversation();
+  mock.method(mindsClient, 'sendMessage', async () => ({}));
+  mock.method(mindsClient, 'waitForReply', async () => ({
+    timedOut: false,
+    reply: {
+      fingerprint: 'reply_test',
+      messageText: '',
+      senderType: 0,
+    },
   }));
 
   await assert.rejects(
@@ -56,16 +73,21 @@ test('sendMindMessage rejects when Minds returns empty content', async () => {
 });
 
 test('sendMindMessage includes sponsor context and memory context in the generated prompt', async () => {
+  stubConversation();
   let capturedMessage = '';
 
-  mock.method(mindsClient.agents, 'chatStreamText', async (_id: string, input: AgentChatInput) => {
-    capturedMessage = input.message;
-    return {
-      content: 'Memory-aware Minds response',
-      conversationId: 'conversation_test',
-      chunks: [],
-    };
+  mock.method(mindsClient, 'sendMessage', async (body: { alias: string; messageText: string }) => {
+    capturedMessage = body.messageText;
+    return {};
   });
+  mock.method(mindsClient, 'waitForReply', async () => ({
+    timedOut: false,
+    reply: {
+      fingerprint: 'reply_test',
+      messageText: 'Memory-aware Minds response',
+      senderType: 0,
+    },
+  }));
 
   await sendMindMessage({
     campaignTitle: 'CreatorPassport Launch',
@@ -80,35 +102,39 @@ test('sendMindMessage includes sponsor context and memory context in the generat
   assert.match(capturedMessage, /Learned Preferences:\nPrefers short sentences/);
 });
 
-test('sendMindMessage reuses the provided conversation ID', async () => {
-  let capturedInput: AgentChatInput | undefined;
+test('sendMindMessage reuses the provided conversation alias', async () => {
+  let capturedAlias = '';
 
-  mock.method(mindsClient.agents, 'chatStreamText', async (_id: string, input: AgentChatInput) => {
-    capturedInput = input;
-    return {
-      content: 'Continuing conversation',
-      conversationId: 'existing_conversation',
-      chunks: [],
-    };
+  mock.method(mindsClient, 'ensureConversation', async (alias: string) => {
+    capturedAlias = alias;
+    return { conversationId: `conversation:${alias}`, alias };
   });
+  mock.method(mindsClient, 'sendMessage', async () => ({}));
+  mock.method(mindsClient, 'waitForReply', async () => ({
+    timedOut: false,
+    reply: {
+      fingerprint: 'reply_test',
+      messageText: 'Continuing conversation',
+      senderType: 0,
+    },
+  }));
 
   const result = await sendMindMessage({
     campaignTitle: 'CreatorPassport Launch',
     sourceText: 'A new creator workflow agent.',
     platform: 'linkedin',
     creatorProfile: { mind_id: 'agent_test' },
-    conversationId: 'existing_conversation',
+    conversationId: 'creatorpassport:agent_test',
   });
 
-  assert.equal(capturedInput?.conversation_id, 'existing_conversation');
-  assert.equal(capturedInput?.new_conversation, undefined);
-  assert.equal(result.conversationId, 'existing_conversation');
+  assert.equal(capturedAlias, 'creatorpassport:agent_test');
+  assert.equal(result.conversationId, 'creatorpassport:agent_test');
 });
 
-test('getMindMemoryContext returns the Minds context string', async () => {
-  mock.method(mindsClient.memory, 'context', async () => ({
-    data: { context: 'Prefers short sentences' },
-  }));
+test('getMindMemoryContext returns recent Minds replies', async () => {
+  mock.method(mindsClient, 'getHistory', async () => [
+    { messageText: 'Prefers short sentences', senderType: 0 },
+  ]);
 
   const context = await getMindMemoryContext('agent_test', 'Launch post');
 
@@ -116,8 +142,8 @@ test('getMindMemoryContext returns the Minds context string', async () => {
 });
 
 test('getMindMemoryContext returns an empty string when Minds fails', async () => {
-  mock.method(mindsClient.memory, 'context', async () => {
-    throw new Error('Minds memory unavailable');
+  mock.method(mindsClient, 'getHistory', async () => {
+    throw new Error('Minds history unavailable');
   });
 
   const context = await getMindMemoryContext('agent_test', 'Launch post');
@@ -125,19 +151,24 @@ test('getMindMemoryContext returns an empty string when Minds fails', async () =
   assert.equal(context, '');
 });
 
-test('writeMindMemory stores an agent-scoped fact', async () => {
-  let capturedInput: Record<string, unknown> | undefined;
+test('writeMindMemory sends a preference note to the persistent conversation', async () => {
+  let capturedMessage = '';
 
-  mock.method(mindsClient.memory.facts, 'add', async (input: Record<string, unknown>) => {
-    capturedInput = input;
-    return { data: { id: 'fact_test' } };
+  mock.method(mindsClient, 'ensureConversation', async (alias: string, mindId: string) => ({
+    conversationId: `conversation:${alias}`,
+    alias,
+    mindId,
+  }));
+  mock.method(mindsClient, 'sendMessage', async (body: { alias: string; messageText: string }) => {
+    capturedMessage = body.messageText;
+    return {};
   });
 
   await writeMindMemory('agent_test', 'platform:linkedin', {
     finalText: 'Short version',
   });
 
-  assert.equal(capturedInput?.agent_id, 'agent_test');
-  assert.deepEqual(capturedInput?.tags, ['creatorpassport']);
-  assert.match(String(capturedInput?.fact), /platform:linkedin/);
+  assert.match(capturedMessage, /CreatorPassport memory update/);
+  assert.match(capturedMessage, /platform:linkedin/);
+  assert.match(capturedMessage, /Short version/);
 });

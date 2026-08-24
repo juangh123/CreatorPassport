@@ -12,16 +12,16 @@ Working prototype with real Supabase and Minds integration:
 - Next.js 16 App Router app builds successfully.
 - Supabase authentication, campaign creation, generation, editing, and RLS are wired.
 - Dashboard, onboarding, campaign creation, and campaign detail flows are implemented.
-- Minds generation uses `chatStreamText()` and does not silently fall back to mock content.
-- Edited outputs are persisted to Supabase and written to Minds memory, then injected into future generations.
+- Minds generation uses the official Builder messaging API and does not silently fall back to mock content.
+- Edited outputs are persisted to Supabase and written into a stable Minds conversation, then recent replies are injected into future generations.
 
 ## Features
 
 - **Multi-platform generation** for X, LinkedIn, Instagram, YouTube, and TikTok.
 - **Content repurposing workflow** from one long-form source into platform-specific versions.
 - **Sponsor compliance guardrails** for required and forbidden terms.
-- **Minds memory loop** across sessions: user edits become preference facts and influence future prompts.
-- **Conversation continuity** through `campaigns.mind_session_id` across platform generations.
+- **Minds memory loop** across sessions: user edits become preference notes and influence future prompts through a persistent conversation alias.
+- **Conversation continuity** through `campaigns.mind_session_id` across platform generations and browser sessions.
 - **Automatic follow-up task creation** when a platform generation needs retry.
 - **Supabase Realtime** updates on campaign detail pages.
 - **RLS-enabled Postgres schema** scoped to the authenticated user.
@@ -29,7 +29,7 @@ Working prototype with real Supabase and Minds integration:
 ## Architecture
 
 - **Frontend**: Next.js 16 App Router, React 19, Tailwind CSS, Framer Motion
-- **Agent Layer**: `@minds/sdk`
+- **Agent Layer**: `@animocabrands/minds-client-lib`
 - **Database**: Supabase Postgres + RLS
 - **UI style**: neo-brutalism / hacker aesthetic
 
@@ -39,9 +39,9 @@ See `docs/ARCHITECTURE.md` for the data flow and component map.
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22
 - Supabase project
-- Minds API key
+- Minds Builder API key
 - A Minds agent ID, either from the dashboard or set as `MINDS_AGENT_ID`
 
 ### Setup
@@ -72,9 +72,13 @@ See `docs/ARCHITECTURE.md` for the data flow and component map.
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
    NEXT_PUBLIC_SUPABASE_URL=...
    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-   MINDS_API_KEY=...
+   MINDS_BUILDER_API_KEY=...
    MINDS_AGENT_ID=...
    ```
+
+   `MINDS_BUILDER_API_KEY` is created in the Minds Builder console
+   (`build.hellominds.ai/console`). It is a JWT-style token, not a `minds_...`
+   consumer account key.
 
 3. **Apply the database migration**
 

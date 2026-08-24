@@ -1,7 +1,10 @@
 import { existsSync } from 'node:fs';
 import { config as loadEnv } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import { Minds } from '@minds/sdk';
+import {
+  BUILDER_API_KEY_ENV,
+  createMindsClient,
+} from '@animocabrands/minds-client-lib';
 
 const envPath = '.env.local';
 
@@ -20,7 +23,7 @@ function record(name, ok, detail = '') {
 }
 
 function hasValue(value) {
-  return typeof value === 'string' && value.trim().length > 0 && value !== 'your-project-url' && value !== 'your-anon-key' && value !== 'your-minds-api-key' && value !== 'your-minds-agent-id';
+  return typeof value === 'string' && value.trim().length > 0 && value !== 'your-project-url' && value !== 'your-anon-key' && value !== 'your-minds-builder-api-key' && value !== 'your-minds-agent-id';
 }
 
 function withTimeout(promise, ms, label) {
@@ -43,11 +46,12 @@ function withTimeout(promise, ms, label) {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const mindsApiKey = process.env.MINDS_API_KEY;
+const mindsBuilderApiKey =
+  process.env[BUILDER_API_KEY_ENV] || process.env.MINDS_API_KEY;
 
 record('NEXT_PUBLIC_SUPABASE_URL', hasValue(supabaseUrl));
 record('NEXT_PUBLIC_SUPABASE_ANON_KEY', hasValue(supabaseAnonKey));
-record('MINDS_API_KEY', hasValue(mindsApiKey));
+record('MINDS_BUILDER_API_KEY', hasValue(mindsBuilderApiKey));
 
 if (process.env.MINDS_AGENT_ID && hasValue(process.env.MINDS_AGENT_ID)) {
   record('MINDS_AGENT_ID', true, 'environment fallback configured');
@@ -77,23 +81,38 @@ if (hasValue(supabaseUrl) && hasValue(supabaseAnonKey)) {
   record('Supabase table probe', false, 'skipped because Supabase env is missing');
 }
 
-if (hasValue(mindsApiKey)) {
+if (hasValue(mindsBuilderApiKey)) {
   try {
-    const minds = new Minds({ apiKey: mindsApiKey });
+    const minds = createMindsClient({ builderApiKey: mindsBuilderApiKey });
     record('Minds client initialization', true);
 
     try {
-      const response = await withTimeout(minds.agents.list({ limit: 1 }), 10000, 'Minds agents list');
-      const count = Array.isArray(response?.data) ? response.data.length : null;
-      record('Minds agents list', true, count === null ? 'reachable' : `${count} agent(s) returned`);
+      const mindsList = await withTimeout(minds.listMinds(), 10000, 'Minds list');
+      const count = Array.isArray(mindsList) ? mindsList.length : null;
+      record('Minds list', true, count === null ? 'reachable' : `${count} Mind(s) returned`);
+
+      if (Array.isArray(mindsList) && mindsList.length > 0) {
+        const configuredId = process.env.MINDS_AGENT_ID;
+        const matched = configuredId
+          ? mindsList.find((mind) => mind.mindId === configuredId)
+          : mindsList[0];
+
+        record(
+          'MINDS_AGENT_ID',
+          Boolean(matched),
+          matched
+            ? `${matched.name ?? 'Mind'} (${matched.mindId})`
+            : 'configured ID was not found in this Builder account',
+        );
+      }
     } catch (error) {
-      record('Minds agents list', false, error instanceof Error ? error.message : 'unknown error');
+      record('Minds list', false, error instanceof Error ? error.message : 'unknown error');
     }
   } catch (error) {
     record('Minds client initialization', false, error instanceof Error ? error.message : 'unknown error');
   }
 } else {
-  record('Minds client initialization', false, 'skipped because MINDS_API_KEY is missing');
+  record('Minds client initialization', false, 'skipped because MINDS_BUILDER_API_KEY is missing');
 }
 
 const failed = results.filter((result) => !result.ok).length;

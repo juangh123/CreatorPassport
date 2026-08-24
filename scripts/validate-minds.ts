@@ -1,6 +1,9 @@
 import { config as loadEnv } from 'dotenv';
 import { existsSync } from 'node:fs';
-import { Minds } from '@minds/sdk';
+import {
+  BUILDER_API_KEY_ENV,
+  createMindsClient,
+} from '@animocabrands/minds-client-lib';
 
 if (existsSync('.env.local')) {
   loadEnv({ path: '.env.local' });
@@ -9,9 +12,9 @@ if (existsSync('.env.local')) {
 }
 
 async function validateMindsAPI() {
-  const apiKey = process.env.MINDS_API_KEY;
-  if (!apiKey || apiKey === 'your-minds-api-key') {
-    console.error('Please set MINDS_API_KEY in .env.local or .env.');
+  const apiKey = process.env[BUILDER_API_KEY_ENV] || process.env.MINDS_API_KEY;
+  if (!apiKey || apiKey === 'your-minds-builder-api-key') {
+    console.error('Please set MINDS_BUILDER_API_KEY in .env.local or .env.');
     return;
   }
 
@@ -22,20 +25,22 @@ async function validateMindsAPI() {
   console.log('Validating Minds API...');
 
   try {
-    // Initialize the Minds client
-    new Minds({
-      apiKey: apiKey,
-    });
+    const client = createMindsClient({ builderApiKey: apiKey });
 
-    console.log('Minds SDK client initialized.');
+    const minds = await client.listMinds();
+    console.log(`Minds Builder API connected: ${minds.length} Mind(s) found.`);
 
-    // In a real validation script, we would create an agent and send a message.
-    // However, we don't have the full documentation for @minds/sdk yet.
-    // Assuming a generic client shape to test connection:
+    const agentId = process.env.MINDS_AGENT_ID;
+    const matchedMind = agentId
+      ? minds.find((mind) => mind.mindId === agentId)
+      : minds[0];
 
-    // We will update the client.ts implementation based on this SDK
-    console.log('Ready to update src/minds/client.ts with @minds/sdk');
+    if (!matchedMind) {
+      console.warn('No matching Mind found for MINDS_AGENT_ID.');
+      return;
+    }
 
+    console.log(`Using Mind: ${matchedMind.name ?? 'Unnamed'} (${matchedMind.mindId}).`);
   } catch (error) {
     console.error('Error validating Minds API:', error);
   }

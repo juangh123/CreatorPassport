@@ -2,9 +2,9 @@
 
 ## Minds Integration Depth
 
-- Uses `@minds/sdk` for real generation via `chatStreamText()`.
-- Reuses the Minds conversation ID within a campaign for continuity across platform generations.
-- Writes edited outputs as Minds memory facts and reads memory context during future generation.
+- Uses `@animocabrands/minds-client-lib` for real generation through `sendMessage()` and `waitForReply()`.
+- Reuses a stable Minds conversation alias within and across campaigns for continuity.
+- Writes edited outputs as preference notes and reads recent Mind replies as memory context during future generation.
 - Creates pending follow-up tasks when a platform generation fails.
 - Binding a per-creator agent ID is a first-class dashboard action.
 
