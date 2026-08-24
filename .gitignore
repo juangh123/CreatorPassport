@@ -44,3 +44,4 @@ yarn-error.log*
 /.trae/
 /.uploads/
 /.workbuddy/
+/.playwright-cli/
