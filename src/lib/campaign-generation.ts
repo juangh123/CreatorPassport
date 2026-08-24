@@ -1,5 +1,5 @@
 import { checkSponsorCompliance } from '@/lib/compliance';
-import { getAgentId, getMindMemoryContext, sendMindMessage } from '@/minds/client';
+import { getAgentId, getMindAlias, getMindMemoryContext, sendMindMessage } from '@/minds/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type CampaignGenerationRecord = {
@@ -42,10 +42,10 @@ export async function generateCampaignContent(
 
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
   const stableMindAlias = mindAgentId
-    ? `creatorpassport:${mindAgentId}`
+    ? getMindAlias(mindAgentId)
     : undefined;
   let conversationAlias =
-    campaign.mind_session_id?.startsWith('creatorpassport:')
+    campaign.mind_session_id?.startsWith('creatorpassport:') && campaign.mind_session_id?.endsWith(':v2')
       ? campaign.mind_session_id
       : stableMindAlias;
   const failedPlatforms: string[] = [];

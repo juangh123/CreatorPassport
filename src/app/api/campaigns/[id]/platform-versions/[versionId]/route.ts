@@ -90,7 +90,6 @@ export async function PATCH(
         await writeMindMemory(creator.mind_id, `platform:${version.platform}`, {
           campaignId,
           platform: version.platform,
-          originalText: version.generated_text,
           finalText,
           updatedAt: new Date().toISOString(),
         });

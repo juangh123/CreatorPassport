@@ -46,7 +46,7 @@ test('sendMindMessage returns the Mind reply for a configured agent', async () =
   });
 
   assert.equal(result.content, 'Real Minds response');
-  assert.equal(result.conversationId, 'creatorpassport:agent_test');
+  assert.equal(result.conversationId, 'creatorpassport:agent_test:v2');
 });
 
 test('sendMindMessage rejects when Minds returns empty content', async () => {
@@ -124,24 +124,24 @@ test('sendMindMessage reuses the provided conversation alias', async () => {
     sourceText: 'A new creator workflow agent.',
     platform: 'linkedin',
     creatorProfile: { mind_id: 'agent_test' },
-    conversationId: 'creatorpassport:agent_test',
+    conversationId: 'creatorpassport:agent_test:v2',
   });
 
-  assert.equal(capturedAlias, 'creatorpassport:agent_test');
-  assert.equal(result.conversationId, 'creatorpassport:agent_test');
+  assert.equal(capturedAlias, 'creatorpassport:agent_test:v2');
+  assert.equal(result.conversationId, 'creatorpassport:agent_test:v2');
 });
 
 test('getMindMemoryContext returns recent Minds replies', async () => {
   mock.method(mindsClient, 'getHistory', async () => [
     {
-      messageText: 'CreatorPassport memory update.\nRemember this preference.\nplatform:twitter: {"finalText":"Short version"}',
+      messageText: 'Saved preference for future twitter posts:\nplatform:twitter: {"finalText":"Short version"}',
       senderType: 0,
     },
   ]);
 
   const context = await getMindMemoryContext('agent_test', 'Launch post');
 
-  assert.match(context, /CreatorPassport memory update/);
+  assert.match(context, /Saved preference for future twitter posts/);
   assert.match(context, /Short version/);
 });
 
@@ -172,7 +172,7 @@ test('writeMindMemory sends a preference note to the persistent conversation', a
     finalText: 'Short version',
   });
 
-  assert.match(capturedMessage, /CreatorPassport memory update/);
+  assert.match(capturedMessage, /Saved preference for future linkedin posts/);
   assert.match(capturedMessage, /platform:linkedin/);
   assert.match(capturedMessage, /Short version/);
 });

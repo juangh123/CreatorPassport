@@ -41,8 +41,8 @@ export function getAgentId(creatorProfile?: CreatorProfile) {
   return process.env.MINDS_AGENT_ID || null;
 }
 
-function getMindAlias(mindId: string) {
-  return `creatorpassport:${mindId}`;
+export function getMindAlias(mindId: string) {
+  return `creatorpassport:${mindId}:v2`;
 }
 
 export async function sendMindMessage(input: SendMindMessageInput): Promise<SendMindMessageResult> {
@@ -103,7 +103,7 @@ export async function getMindMemoryContext(
     const recentPreferences = history
       .map((row) => row.messageText)
       .filter((text): text is string => Boolean(text?.trim()))
-      .filter((text) => text.includes('CreatorPassport memory update'))
+      .filter((text) => text.includes('Saved preference for future'))
       .slice(-6);
 
     if (recentPreferences.length === 0) {
@@ -150,8 +150,7 @@ export async function writeMindMemory(mindId: string, key: string, value: unknow
     await mindsClient.sendMessage({
       alias,
       messageText: [
-        'CreatorPassport memory update.',
-        'Remember this preference for future generation tasks.',
+        `Saved preference for future ${key.replace('platform:', '')} posts:`,
         `${key}: ${JSON.stringify(value)}`,
       ].join('\n'),
     });

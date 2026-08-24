@@ -12,7 +12,7 @@ Analyze the provided samples and explicit preferences to extract:
 Merge these into a structured JSON profile representing the Creator Voice.
 `;
 
-export const GENERATE_CAMPAIGN_PROMPT = `Please write a finished platform post for the campaign below.`;
+export const GENERATE_CAMPAIGN_PROMPT = `Please use your social_media_marketing skill and write a finished platform post for the campaign below.`;
 
 export const EXTRACT_MODIFICATION_PROMPT = `
 You are CreatorPassport Core. Analyze the user's modifications to the generated text.
@@ -26,6 +26,21 @@ export function generateCampaignPrompt(
   memoryContext = '',
 ) {
   const platform = typeof context.platform === 'string' ? context.platform : 'social';
+  const sponsorConstraints =
+    context.sponsorConstraints && typeof context.sponsorConstraints === 'object' && !Array.isArray(context.sponsorConstraints)
+      ? context.sponsorConstraints as Record<string, unknown>
+      : {};
+  const audience = typeof sponsorConstraints.audience === 'string' ? sponsorConstraints.audience.trim() : '';
+  const tone = typeof sponsorConstraints.tone === 'string' ? sponsorConstraints.tone.trim() : '';
+  const rules = typeof sponsorConstraints.rules === 'string' ? sponsorConstraints.rules.trim() : '';
+  const requiredTerms = Array.isArray(sponsorConstraints.required_terms)
+    ? sponsorConstraints.required_terms.filter((term): term is string => typeof term === 'string' && Boolean(term.trim()))
+    : [];
+  const additionalConstraints = Object.entries(sponsorConstraints)
+    .filter(([key]) => !['audience', 'tone', 'rules', 'required_terms'].includes(key))
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+  const voiceEntries = Object.entries(voiceProfile)
+    .filter(([key, value]) => key !== 'mind_id' && value !== '' && value !== null && value !== undefined);
 
   return `
 ${GENERATE_CAMPAIGN_PROMPT}
@@ -35,14 +50,16 @@ Platform: ${platform}
 Source material:
 ${sourceText}
 
-Campaign requirements:
-${JSON.stringify(context, null, 2)}
+${audience ? `Target audience: ${audience}` : ''}
+${tone ? `Tone: ${tone}` : ''}
+${rules ? `Brand rules: ${rules}` : ''}
+${requiredTerms.length > 0 ? `Required terms: ${requiredTerms.join(', ')}` : ''}
+${additionalConstraints.length > 0 ? `Additional constraints:\n${additionalConstraints.join('\n')}` : ''}
 
 ${memoryContext ? `Learned Preferences:\n${memoryContext}\n` : ''}
 
-Creator voice profile:
-${JSON.stringify(voiceProfile, null, 2)}
+${voiceEntries.length > 0 ? `Creator voice profile:\n${JSON.stringify(Object.fromEntries(voiceEntries), null, 2)}` : ''}
 
-Write only the final post. Do not explain or ask follow-up questions.
+Return only the finished post, no commentary.
   `;
 }
