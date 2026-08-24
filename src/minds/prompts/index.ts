@@ -12,16 +12,7 @@ Analyze the provided samples and explicit preferences to extract:
 Merge these into a structured JSON profile representing the Creator Voice.
 `;
 
-export const GENERATE_CAMPAIGN_PROMPT = `
-You are CreatorPassport Core. Generate platform-specific content based on the source text, sponsor brief, and the creator's voice profile.
-
-Requirements:
-1. Apply the creator's voice to all outputs.
-2. Incorporate sponsor constraints naturally.
-3. Ensure no factual contradictions across platforms.
-
-Output should be a JSON array of platform versions.
-`;
+export const GENERATE_CAMPAIGN_PROMPT = `Please write a finished platform post for the campaign below.`;
 
 export const EXTRACT_MODIFICATION_PROMPT = `
 You are CreatorPassport Core. Analyze the user's modifications to the generated text.
@@ -34,18 +25,24 @@ export function generateCampaignPrompt(
   voiceProfile: Record<string, unknown>,
   memoryContext = '',
 ) {
+  const platform = typeof context.platform === 'string' ? context.platform : 'social';
+
   return `
 ${GENERATE_CAMPAIGN_PROMPT}
 
-INPUTS:
-Source Text:
+Platform: ${platform}
+
+Source material:
 ${sourceText}
 
-Campaign Context:
+Campaign requirements:
 ${JSON.stringify(context, null, 2)}
 
 ${memoryContext ? `Learned Preferences:\n${memoryContext}\n` : ''}
-Creator Voice Profile:
+
+Creator voice profile:
 ${JSON.stringify(voiceProfile, null, 2)}
+
+Write only the final post. Do not explain or ask follow-up questions.
   `;
 }

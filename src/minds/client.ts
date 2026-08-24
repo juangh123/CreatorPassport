@@ -85,7 +85,7 @@ export async function sendMindMessage(input: SendMindMessageInput): Promise<Send
 }
 
 /**
- * Builds a lightweight memory context block from recent Minds replies.
+ * Builds a lightweight memory context block from saved preference notes.
  *
  * The official Builder API does not expose a separate memory-facts endpoint.
  * Keeping the same conversation alias gives the Mind persistent context across
@@ -100,17 +100,18 @@ export async function getMindMemoryContext(
   try {
     const alias = getMindAlias(mindId);
     const history = await mindsClient.getHistory(alias, { limit: 20 });
-    const recentReplies = history
+    const recentPreferences = history
       .map((row) => row.messageText)
       .filter((text): text is string => Boolean(text?.trim()))
+      .filter((text) => text.includes('CreatorPassport memory update'))
       .slice(-6);
 
-    if (recentReplies.length === 0) {
+    if (recentPreferences.length === 0) {
       return '';
     }
 
     const maxChars = maxTokens * 4;
-    const context = recentReplies.join('\n');
+    const context = recentPreferences.join('\n');
     return context.length <= maxChars ? context : context.slice(-maxChars);
   } catch (error) {
     console.error('Error loading Minds memory context:', error);

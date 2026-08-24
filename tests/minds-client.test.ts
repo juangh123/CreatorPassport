@@ -133,12 +133,16 @@ test('sendMindMessage reuses the provided conversation alias', async () => {
 
 test('getMindMemoryContext returns recent Minds replies', async () => {
   mock.method(mindsClient, 'getHistory', async () => [
-    { messageText: 'Prefers short sentences', senderType: 0 },
+    {
+      messageText: 'CreatorPassport memory update.\nRemember this preference.\nplatform:twitter: {"finalText":"Short version"}',
+      senderType: 0,
+    },
   ]);
 
   const context = await getMindMemoryContext('agent_test', 'Launch post');
 
-  assert.equal(context, 'Prefers short sentences');
+  assert.match(context, /CreatorPassport memory update/);
+  assert.match(context, /Short version/);
 });
 
 test('getMindMemoryContext returns an empty string when Minds fails', async () => {
