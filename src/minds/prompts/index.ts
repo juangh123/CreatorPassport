@@ -12,7 +12,7 @@ Analyze the provided samples and explicit preferences to extract:
 Merge these into a structured JSON profile representing the Creator Voice.
 `;
 
-export const GENERATE_CAMPAIGN_PROMPT = `Please use your social_media_marketing skill and write a finished platform post for the campaign below.`;
+export const GENERATE_CAMPAIGN_PROMPT = `Hi, I'm working on CreatorPassport. It helps creators turn one long-form idea into platform-native posts while keeping their voice consistent. Please use your social_media_marketing skill and write a finished platform post for the campaign below.`;
 
 export const EXTRACT_MODIFICATION_PROMPT = `
 You are CreatorPassport Core. Analyze the user's modifications to the generated text.
@@ -45,21 +45,20 @@ export function generateCampaignPrompt(
   return `
 ${GENERATE_CAMPAIGN_PROMPT}
 
-Platform: ${platform}
-
-Source material:
+Here is the source I want repurposed:
 ${sourceText}
 
-${audience ? `Target audience: ${audience}` : ''}
-${tone ? `Tone: ${tone}` : ''}
-${rules ? `Brand rules: ${rules}` : ''}
-${requiredTerms.length > 0 ? `Required terms: ${requiredTerms.join(', ')}` : ''}
-${additionalConstraints.length > 0 ? `Additional constraints:\n${additionalConstraints.join('\n')}` : ''}
+${audience ? `Target audience: ${audience}.` : ''}
+${tone ? `Tone: ${tone}.` : ''}
+${rules ? `Brand rules: ${rules}.` : ''}
+${requiredTerms.length > 0 ? `Please make sure the post includes: ${requiredTerms.join(', ')}.` : ''}
+${additionalConstraints.length > 0 ? `Additional context:\n${additionalConstraints.join('\n')}` : ''}
 
 ${memoryContext ? `Learned Preferences:\n${memoryContext}\n` : ''}
 
 ${voiceEntries.length > 0 ? `Creator voice profile:\n${JSON.stringify(Object.fromEntries(voiceEntries), null, 2)}` : ''}
 
+Please use your social_media_marketing skill to draft a ${platform} post.
 Return only the finished post, no commentary.
   `;
 }
